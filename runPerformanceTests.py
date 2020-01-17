@@ -367,7 +367,7 @@ if __name__ == "__main__":
     
     models = None
 
-    default_num_samples = 1000
+    default_num_samples = 1024
     if args.tests == "":
         models = find_files("*.stan", args.directories)
         models = filter(model_name_re.match, models)
