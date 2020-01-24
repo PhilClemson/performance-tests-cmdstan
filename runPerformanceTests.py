@@ -220,6 +220,9 @@ def run_model(exe, method, data, tmp, runs, num_samples):
                 if method == "smc-sample":
                     shexec("mpirun -np 1 {} {} method=sample algorithm=smcs proposal=rw T=2 {} random seed=1234 output file={}"
                     .format(exe, num_samples_str, data_str, tmp))
+                if method == "nuts-sample":
+                    shexec("{} method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file={}"
+                    .format(exe, num_samples_str, data_str, tmp))
             except FailedCommand as e:
                 if e.returncode == 78:
                     run_as_fixed_param()
