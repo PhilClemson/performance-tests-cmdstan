@@ -90,7 +90,6 @@ def shexec(command, wd = "."):
     return returncode
 
 def make(targets, j=8):
-    print(len(targets))
     for i in range(len(targets)):
         prefix = ""
         #if not targets[i].startswith(os.sep):
@@ -219,9 +218,11 @@ def run_model(exe, method, data, tmp, runs, num_samples):
                     shexec("{} method={} {} {} random seed=1234 output file={}"
                     .format(exe, method, num_samples_str, data_str, tmp))
                 if method == "smc-sample":
-                    shexec("mpirun -np 1 {} {} method=sample algorithm=smcs proposal=rw T=2 {} random seed=1234 output file={}"
+		    num_samples_str = "num_samples={}".format(num_samples)
+                    shexec("mpirun -np 2 {} method=sample algorithm=smcs proposal=hmc T=2 Tsmc=100 {} {} random seed=1234 output file={}"
                     .format(exe, num_samples_str, data_str, tmp))
                 if method == "nuts-sample":
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
                     shexec("{} method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file={}"
                     .format(exe, num_samples_str, data_str, tmp))
             except FailedCommand as e:
