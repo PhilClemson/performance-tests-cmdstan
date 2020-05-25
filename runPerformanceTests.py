@@ -219,7 +219,7 @@ def run_model(exe, method, data, tmp, runs, num_samples):
                     .format(exe, method, num_samples_str, data_str, tmp))
                 if method == "smc-sample":
 		    num_samples_str = "num_samples={}".format(num_samples)
-                    shexec("mpirun -np 4 {} method=sample algorithm=smcs proposal=hmc T=1 Tsmc=100 {} {} random seed=1234 output file={}"
+                    shexec("mpirun -np 4 {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 {} {} random seed=1234 output file={}"
                     .format(exe, num_samples_str, data_str, tmp))
                 if method == "nuts-sample":
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
