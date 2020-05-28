@@ -16,6 +16,7 @@ from time import time
 from datetime import datetime
 import xml.etree.ElementTree as ET
 import multiprocessing
+import numpy as np
 
 GOLD_OUTPUT_DIR = os.path.join("performance-tests-cmdstan/golds","")
 DIR_UP = os.path.join("..","")
@@ -154,6 +155,7 @@ bad_models = frozenset(
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.04","GLMM5.stan")
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.05","ssm2.stan")
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.07","cjs_group_raneff.stan")
+     , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","flight_simulator_17.3.stan") # disabled while issue with SMC-Stan remains
     ])
 
 def avg(coll):
@@ -213,18 +215,49 @@ def run_model(exe, method, data, tmp, runs, num_samples):
         else:
             try:
                 num_samples_str = ""
+		num_proc = multiprocessing.cpu_count()
                 if method == "sample":
                     num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
                     shexec("{} method={} {} {} random seed=1234 output file={}"
                     .format(exe, method, num_samples_str, data_str, tmp))
                 if method == "smc-sample":
+		    if num_proc != 1:
+		    	num_proc = num_proc - (num_proc % 2)
 		    num_samples_str = "num_samples={}".format(num_samples)
-                    shexec("mpirun -np 4 {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 {} {} random seed=1234 output file={}"
-                    .format(exe, num_samples_str, data_str, tmp))
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc={} num_samples=128 {} random seed=1234 output file=output_smc.out".format(num_proc, exe, num_samples, data_str, tmp))
                 if method == "nuts-sample":
+		    thread_num = "1"
+		    if num_proc != 1:
+		    	num_proc = num_proc - (num_proc % 2)
+		        for n in range(2,num_proc+1):
+			    thread_num = thread_num + " {}".format(n)
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
-                    shexec("{} method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file={}"
-                    .format(exe, num_samples_str, data_str, tmp))
+                    shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+                if method == "compare_methods":
+		    thread_num = "1"
+		    if num_proc != 1:
+		    	num_proc = num_proc - (num_proc % 2)
+		        for n in range(2,num_proc+1):
+			    thread_num = thread_num + " {}".format(n)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((128*num_samples) - num_samples)/num_proc)
+                    shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc={} num_samples=128 {} random seed=1234 output file=output_smc.out"
+                    .format(num_proc, exe, num_samples, data_str, tmp))
+		    lines1 = np.loadtxt("output_hmc1.out", comments=["#","lp__"], delimiter=",", unpack=False)
+		    lines2 = np.loadtxt("output_hmc2.out", comments=["#","lp__"], delimiter=",", unpack=False)
+		    samps = np.append(lines1[:,7:],lines2[:,7:], axis=0)
+		    cov_hmc = np.cov(samps.T)
+		    mean_hmc = np.mean(samps, axis=0)
+		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
+		    cov_smc = np.cov(samps.T)
+		    mean_smc = np.mean(samps, axis=0)
+		    sd = np.sqrt(np.diag(cov_hmc))  				
+		    error = (mean_smc - mean_hmc) / sd
+		    print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
+		    os.remove("output_hmc1.out")
+		    os.remove("output_hmc2.out")
+		    os.remove("output_smc.out")
+
             except FailedCommand as e:
                 if e.returncode == 78:
                     run_as_fixed_param()
