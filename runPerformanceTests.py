@@ -224,7 +224,7 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		    if num_proc != 1:
 		    	num_proc = num_proc - (num_proc % 2)
 		    num_samples_str = "num_samples={}".format(num_samples)
-		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc={} num_samples=128 {} random seed=1234 output file=output_smc.out".format(num_proc, exe, num_samples, data_str, tmp))
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, num_samples, data_str, tmp))
                 if method == "nuts-sample":
 		    thread_num = "1"
 		    if num_proc != 1:
@@ -239,9 +239,9 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		    	num_proc = num_proc - (num_proc % 2)
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((128*num_samples) - num_samples)/num_proc)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
                     shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
-                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc={} num_samples=128 {} random seed=1234 output file=output_smc.out"
+                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
                     .format(num_proc, exe, num_samples, data_str, tmp))
 		    lines1 = np.loadtxt("output_hmc1.out", comments=["#","lp__"], delimiter=",", unpack=False)
 		    lines2 = np.loadtxt("output_hmc2.out", comments=["#","lp__"], delimiter=",", unpack=False)
@@ -249,11 +249,13 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		    cov_hmc = np.cov(samps.T)
 		    mean_hmc = np.mean(samps, axis=0)
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    cov_smc = np.cov(samps.T)
-		    mean_smc = np.mean(samps, axis=0)
+		    #cov_smc = np.cov(samps.T)
+		    #mean_smc = np.mean(samps, axis=0)
 		    sd = np.sqrt(np.diag(cov_hmc))  				
+		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated
 		    error = (mean_smc - mean_hmc) / sd
-		    print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
+		    #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
+		    print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
 		    os.remove("output_hmc1.out")
 		    os.remove("output_hmc2.out")
 		    os.remove("output_smc.out")
