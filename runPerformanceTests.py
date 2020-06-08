@@ -156,6 +156,7 @@ bad_models = frozenset(
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.05","ssm2.stan")
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.07","cjs_group_raneff.stan")
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","flight_simulator_17.3.stan") # disabled while issue with SMC-Stan remains
+     , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.24","dogs_log.stan") # disabled while issue with SMC-Stan remains
     ])
 
 def avg(coll):
@@ -240,26 +241,36 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-                    shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
                     shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
                     .format(num_proc, exe, num_samples, data_str, tmp))
-		    lines1 = np.loadtxt("output_hmc1.out", comments=["#","lp__"], delimiter=",", unpack=False)
-		    lines2 = np.loadtxt("output_hmc2.out", comments=["#","lp__"], delimiter=",", unpack=False)
-		    samps = np.append(lines1[:,7:],lines2[:,7:], axis=0)
-		    cov_hmc = np.cov(samps.T)
-		    mean_hmc = np.mean(samps, axis=0)
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    #cov_smc = np.cov(samps.T)
 		    #mean_smc = np.mean(samps, axis=0)
-		    sd = np.sqrt(np.diag(cov_hmc))  				
 		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated
-		    error = (mean_smc - mean_hmc) / sd
-		    #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
-		    print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
-		    os.remove("output_hmc1.out")
-		    os.remove("output_hmc2.out")
+		    if not np.isnan(mean_smc[0]):
+		        shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+			f_string = "output_hmc1.out"
+		        lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
+			samps = lines[:,7:]
+			if num_proc != 1:
+			    for i in range(2,num_proc):
+			        f_string = "output_hmc{}.out".format(i)
+		                lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
+			        samps = np.append(samps,lines[:,7:], axis=0)
+		        cov_hmc = np.cov(samps.T)
+		        mean_hmc = np.mean(samps, axis=0)
+		        sd = np.sqrt(np.diag(cov_hmc))  				
+		        error = (mean_smc - mean_hmc) / sd
+		        #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
+		        print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+		        sys.stdout.flush() # added so Jenkins log can catch up
+			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
+			sys.stdout.flush() # added so Jenkins log can catch up
+		        os.remove("output_hmc*.out")
+		    else:
+			print("{} has NaNs in SMC-stan output".format(exe))
+			sys.stdout.flush() # added so Jenkins log can catch up
 		    os.remove("output_smc.out")
-
             except FailedCommand as e:
                 if e.returncode == 78:
                     run_as_fixed_param()
