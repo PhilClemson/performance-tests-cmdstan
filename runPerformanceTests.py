@@ -202,7 +202,7 @@ def parse_summary(f):
         d[param] = (float(avg), float(stdev))
     return d
 
-def run_model(exe, method, data, tmp, runs, num_samples):
+def run_model(exe, method, proposal, data, tmp, runs, num_samples):
     def run_as_fixed_param():
         shexec("{} method=sample algorithm='fixed_param' random seed=1234 output file={}"
                .format(exe, tmp))
@@ -225,7 +225,7 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		    if num_proc != 1:
 		    	num_proc = num_proc - (num_proc % 2)
 		    num_samples_str = "num_samples={}".format(num_samples)
-		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, num_samples, data_str, tmp))
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, proposal, num_samples, data_str, tmp))
                 if method == "nuts-sample":
 		    thread_num = "1"
 		    if num_proc != 1:
@@ -241,8 +241,8 @@ def run_model(exe, method, data, tmp, runs, num_samples):
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=NUTS T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
-                    .format(num_proc, exe, num_samples, data_str, tmp))
+                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
+                    .format(num_proc, exe, proposal, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    #cov_smc = np.cov(samps.T)
 		    #mean_smc = np.mean(samps, axis=0)
@@ -372,7 +372,7 @@ def run_golds(gold, tmp, summary, check_golds_exact):
         print("SUCCESS: Gold {} passed.".format(gold))
     return fails, errors
 
-def run(exe, data, overwrite, check_golds, check_golds_exact, runs, method, num_samples):
+def run(exe, data, overwrite, check_golds, check_golds_exact, runs, method, proposal, num_samples):
     fails, errors = [], []
     if not os.path.isfile(exe):
         return 0, (fails, errors + ["Did not compile!"])
@@ -383,7 +383,7 @@ def run(exe, data, overwrite, check_golds, check_golds_exact, runs, method, num_
                         exe.replace(DIR_UP, "").replace(os.sep, "_") + ".gold")
     tmp = gold + ".tmp"
     try:
-        total_time = run_model(exe, method, data, tmp, runs, num_samples)
+        total_time = run_model(exe, method, proposal, data, tmp, runs, num_samples)
     except Exception as e:
         print("Encountered exception while running {}:".format(exe))
         print(e)
@@ -454,13 +454,15 @@ def parse_args():
                         help="Number of samples to ask Stan programs for if we're sampling.")
     parser.add_argument("--tests-file", dest="tests", action="store", type=str, default="")
     parser.add_argument("--scorch-earth", dest="scorch", action="store_true")
+    parser.add_argument("--proposal", dest="proposal", action="store", default="rw",
+                        help="Proposal used in SMC.")
     return parser.parse_args()
 
-def process_test(overwrite, check_golds, check_golds_exact, runs, method):
+def process_test(overwrite, check_golds, check_golds_exact, runs, method, proposal):
     def process_test_wrapper(tup):
         model, exe, data, num_samples = tup
         time_, (fails, errors) = run(exe, data, overwrite, check_golds,
-                                     check_golds_exact, runs, method, num_samples)
+                                     check_golds_exact, runs, method, proposal, num_samples)
         average_time = runs and time_ / runs or 0
         return (model, average_time, fails, errors)
     return process_test_wrapper
@@ -508,7 +510,7 @@ if __name__ == "__main__":
         map_ = map
     results = map_(process_test(args.overwrite, args.check_golds,
                                 args.check_golds_exact, args.runs,
-                                args.method),
+                                args.method, args.proposal),
                     tests)
     results = list(results)
     results.append(("{}.compilation".format(args.name), make_time, [], []))
