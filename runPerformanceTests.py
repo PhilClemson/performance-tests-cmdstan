@@ -232,6 +232,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    print("mean_smc = {}".format(mean_smc))
 		    sys.stdout.flush() # added so Jenkins log can catch up
+		    os.remove("output_smc.out")
                 if method == "nuts-sample":
 		    thread_num = "1"
 		    if num_proc != 1:
