@@ -267,9 +267,11 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    	num_proc = num_proc - (num_proc % 2)
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
-                    .format(num_proc, exe, proposal, num_samples, data_str, tmp))
+		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
+num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
+                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
+                    .format(num_proc, exe, proposal, num_samples, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    #cov_smc = np.cov(samps.T)
 		    #mean_smc = np.mean(samps, axis=0)
