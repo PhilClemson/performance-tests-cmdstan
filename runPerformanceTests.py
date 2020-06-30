@@ -274,7 +274,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    #cov_smc = np.cov(samps.T)
 		    #mean_smc = np.mean(samps, axis=0)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated
+		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated
 		    if not np.isnan(mean_smc[0]):
 		        shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 			f_string = "output_hmc1.out"
