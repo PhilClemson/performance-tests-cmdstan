@@ -19,6 +19,8 @@ import multiprocessing
 import numpy as np
 import time as tm
 
+np.set_printoptions(threshold=sys.maxsize)
+
 GOLD_OUTPUT_DIR = os.path.join("performance-tests-cmdstan/golds","")
 DIR_UP = os.path.join("..","")
 CURR_DIR = os.path.join(".","")
@@ -86,10 +88,16 @@ class FailedCommand(Exception):
 
 def shexec(command, wd = "."):
     print(command)
-    returncode = subprocess.call(command, shell=True, cwd=wd)
-    if returncode != 0:
-        raise FailedCommand(returncode, command)
-    return returncode
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process.wait()
+    output = process.stdout.read()
+    print(output)
+    output = process.stderr.read()
+    print(output)
+    sys.stdout.flush() # added so Jenkins log can catch up
+    if process.returncode != 0:
+        raise FailedCommand(process.returncode, command)
+    return process.returncode
 
 def make(targets, j=8):
     for i in range(len(targets)):
@@ -226,10 +234,9 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    if num_proc != 1:
 		    	num_proc = num_proc - (num_proc % 2)
 		    num_samples_str = "num_samples={}".format(num_samples)
-		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, proposal, num_samples, data_str, tmp))
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, proposal, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated
-		    sys.stdout.flush() # added so Jenkins log can catch up
+		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated
 		    print("mean_smc = {}".format(mean_smc))
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    os.remove("output_smc.out")
@@ -252,13 +259,10 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    cov_hmc = np.cov(samps.T)
 		    mean_hmc = np.mean(samps, axis=0)
 		    sd = np.sqrt(np.diag(cov_hmc))  				
-		    error = (mean_smc - mean_hmc) / sd
 		    #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
-		    print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+		    print("cov_hmc = {}\n mean_hmc = {}\n sd = {}".format(cov_hmc, mean_hmc, sd))
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
-		    tm.sleep(1) # so stansummary has time before files are deleted
-		    sys.stdout.flush() # added so Jenkins log can catch up
 		    for n in range(1,num_proc+1):
 		        os.remove("output_hmc{}.out".format(n))
                 if method == "compare_methods":
@@ -277,6 +281,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated
 		    if not np.isnan(mean_smc[0]):
 		        shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
 			f_string = "output_hmc1.out"
 		        lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 			samps = lines[:,7:]
@@ -290,24 +295,23 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		        sd = np.sqrt(np.diag(cov_hmc))
 		        error = (mean_smc - mean_hmc) / sd
 		        #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
+			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
 		        print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
 		        sys.stdout.flush() # added so Jenkins log can catch up
-			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
-			tm.sleep(1) # so stansummary has time before files are deleted
-			sys.stdout.flush() # added so Jenkins log can catch up
 		        for n in range(1,num_proc+1):
 	                    os.remove("output_hmc{}.out".format(n))
 		    else:
 			print("{} has NaNs in SMC-stan output".format(exe))
 			sys.stdout.flush() # added so Jenkins log can catch up
 		    os.remove("output_smc.out")
-                if method == "compare_methods_hmc":
+                if method == "compare_methods_custom":
 		    thread_num = "1"
 		    if num_proc != 1:
 		    	num_proc = num_proc - (num_proc % 2)
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
+		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
 	            shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    f_string = "output_hmc1.out"
 	            lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
@@ -320,10 +324,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 	            cov_hmc = np.cov(samps.T)
 	            mean_hmc = np.mean(samps, axis=0)
 	            sd = np.sqrt(np.diag(cov_hmc))
-		    sys.stdout.flush() # added so Jenkins log can catch up
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
-		    print(lines)
-		    sys.stdout.flush() # added so Jenkins log can catch up
 		    k=1
 		    l=-1
 		    j=0
@@ -347,12 +348,17 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		        k = k+1
 		    k_end = k
 		    stepsize = float(lines[k_start:k_end])
-                    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal=hmc stepsize={} num_leapfrog_steps=5 T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
-                    .format(num_proc, exe, stepsize, num_samples, data_str, tmp))
-		    sys.stdout.flush() # added so Jenkins log can catch up
+		    if proposal == "hmc":
+                    	shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
+         		.format(num_proc, exe, proposal, stepsize, num_samples, num_samples, data_str, tmp))
+		    else:
+			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
+			.format(num_proc, exe, proposal, stepsize, num_samples, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated			
 	            error = (mean_smc - mean_hmc) / sd
+		    print(lines)
+		    sys.stdout.flush() # added so Jenkins log can catch up
 	            print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
 	            sys.stdout.flush() # added so Jenkins log can catch up
 		    for n in range(1,num_proc+1):
