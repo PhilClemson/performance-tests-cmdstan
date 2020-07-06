@@ -111,8 +111,6 @@ def make(targets, j=8):
         for char in name:
             if char.isalnum():
                 formatted_name = formatted_name + char
-        shexec("bin/stanc --name={} --o={} {}"
-            .format(formatted_name,targets[i]+'.hpp',targets[i]+'.stan'), wd = ".")
         shexec("make -i -j{} {}"
             .format(j, " ".join(targets)), wd = ".")
     except FailedCommand:
