@@ -85,6 +85,12 @@ class FailedCommand(Exception):
         Exception(self, "return code '{}' from command '{}'!"
                   .format(returncode, command))
 
+def shexec_make(command, wd = "."):
+    print(command)
+    returncode = subprocess.call(command, shell=True, cwd=wd)
+    if returncode != 0:
+        raise FailedCommand(returncode, command)
+    return returncode
 
 def shexec(command, wd = "."):
     print(command)
@@ -111,7 +117,7 @@ def make(targets, j=8):
         for char in name:
             if char.isalnum():
                 formatted_name = formatted_name + char
-        shexec("make -i -j{} {}"
+        shexec_make("make -i -j{} {}"
             .format(j, " ".join(targets)), wd = ".")
     except FailedCommand:
         print("Failed to make at least some targets")
