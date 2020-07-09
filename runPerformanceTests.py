@@ -294,13 +294,14 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 			        f_string = "output_hmc{}.out".format(i)
 		                lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 			        samps = np.append(samps,lines[:,7:], axis=0)
-		        cov_hmc = np.cov(samps.T)
+		        #cov_hmc = np.cov(samps.T)
 		        mean_hmc = np.mean(samps, axis=0)
 		        sd = np.sqrt(np.diag(cov_hmc))
 		        error = (mean_smc - mean_hmc) / sd
 		        #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
 			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
-		        print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+		        #print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+			print("error = {}".format(error)) # no longer printing cov / means due to potential of large outputs
 		        sys.stdout.flush() # added so Jenkins log can catch up
 		        for n in range(1,num_proc+1):
 	                    os.remove("output_hmc{}.out".format(n))
@@ -325,7 +326,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    	    f_string = "output_hmc{}.out".format(i)
 	                    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 		            samps = np.append(samps,lines[:,7:], axis=0)
-	            cov_hmc = np.cov(samps.T)
+	            #cov_hmc = np.cov(samps.T)
 	            mean_hmc = np.mean(samps, axis=0)
 	            sd = np.sqrt(np.diag(cov_hmc))
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
@@ -363,7 +364,8 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 	            error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
-	            print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+	            #print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
+		    print("error = {}".format(error)) # no longer printing cov / means due to potential of large outputs
 	            sys.stdout.flush() # added so Jenkins log can catch up
 		    for n in range(1,num_proc+1):
 	                os.remove("output_hmc{}.out".format(n))
