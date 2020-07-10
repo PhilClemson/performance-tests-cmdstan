@@ -170,6 +170,7 @@ bad_models = frozenset(
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.07","cjs_group_raneff.stan")
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","flight_simulator_17.3.stan") # disabled while issue with SMC-Stan remains
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.24","dogs_log.stan") # disabled while issue with SMC-Stan remains
+     , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","robit_17.7") # seems to now take days in normal stan
     ])
 
 def avg(coll):
@@ -294,7 +295,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 			        f_string = "output_hmc{}.out".format(i)
 		                lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 			        samps = np.append(samps,lines[:,7:], axis=0)
-		        #cov_hmc = np.cov(samps.T)
+		        cov_hmc = np.cov(samps.T)
 		        mean_hmc = np.mean(samps, axis=0)
 		        sd = np.sqrt(np.diag(cov_hmc))
 		        error = (mean_smc - mean_hmc) / sd
@@ -326,7 +327,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    	    f_string = "output_hmc{}.out".format(i)
 	                    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 		            samps = np.append(samps,lines[:,7:], axis=0)
-	            #cov_hmc = np.cov(samps.T)
+	            cov_hmc = np.cov(samps.T)
 	            mean_hmc = np.mean(samps, axis=0)
 	            sd = np.sqrt(np.diag(cov_hmc))
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
