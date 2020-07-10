@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 import multiprocessing
 import numpy as np
 import time as tm
+import signal
+from threading import Timer
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -92,10 +94,17 @@ def shexec_make(command, wd = "."):
         raise FailedCommand(returncode, command)
     return returncode
 
+def shkill(process):
+    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    print('KILLED (TIMEOUT)')
+
 def shexec(command, wd = "."):
     print(command)
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+    t = Timer(3600, shkill, [process]) # kill if hour passes
+    t.start()
     process.wait()
+    t.cancel()
     output = process.stdout.read()
     print(output)
     output = process.stderr.read()
