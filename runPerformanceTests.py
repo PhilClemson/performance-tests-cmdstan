@@ -101,10 +101,10 @@ def shkill(process):
 def shexec(command, wd = "."):
     print(command)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-    t = Timer(3600, shkill, [process]) # kill if hour passes
-    t.start()
+    #t = Timer(3600, shkill, [process]) # kill if hour passes
+    #t.start()
     process.wait()
-    t.cancel()
+    #t.cancel()
     output = process.stdout.read()
     print(output)
     output = process.stderr.read()
@@ -327,7 +327,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 			    thread_num = thread_num + " {}".format(n)
 		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
-	            shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+	            shexec("for i in {}; do ({} id=$i method=sample adapt delta=0.99 algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    f_string = "output_hmc1.out"
 	            lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 		    samps = lines[:,7:]
@@ -366,20 +366,23 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		    if proposal == "hmc":
                     	shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
          		.format(num_proc, exe, proposal, stepsize, num_samples, num_samples, data_str, tmp))
+		    elif proposal == "rw":
+                    	shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=3456 output file=output_smc.out"
+         		.format(num_proc, exe, proposal, num_samples, num_samples, data_str, tmp))
 		    else:
-			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
-			.format(num_proc, exe, proposal, stepsize, num_samples, num_samples, data_str, tmp))
+			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize=0.01 T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
+			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated			
 	            error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
 	            #print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
-		    print("error = {}".format(error)) # no longer printing cov / means due to potential of large outputs
+		    print("mean_hmc = {}\n mean_smc = {}\n error = {}".format( mean_hmc, mean_smc, error)) # no longer printing cov / means due to potential of large outputs
 	            sys.stdout.flush() # added so Jenkins log can catch up
-		    for n in range(1,num_proc+1):
-	                os.remove("output_hmc{}.out".format(n))
-		    os.remove("output_smc.out")
+		    #for n in range(1,num_proc+1):
+	            #    os.remove("output_hmc{}.out".format(n))
+		    #os.remove("output_smc.out")
             except FailedCommand as e:
                 if e.returncode == 78:
                     run_as_fixed_param()
