@@ -179,7 +179,7 @@ bad_models = frozenset(
      , os.path.join("performance-tests-cmdstan","example-models","BPA","Ch.07","cjs_group_raneff.stan")
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","flight_simulator_17.3.stan") # disabled while issue with SMC-Stan remains
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.24","dogs_log.stan") # disabled while issue with SMC-Stan remains
-     , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","robit_17.7") # seems to now take days in normal stan
+     , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","sir","sir.stan") # removed while issue with SMC-Stan remains
     ])
 
 def avg(coll):
@@ -326,7 +326,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
 		        for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
 		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 4096)
 	            shexec("for i in {}; do ({} id=$i method=sample adapt delta=0.99 algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    f_string = "output_hmc1.out"
 	            lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
@@ -370,10 +370,10 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples):
                     	shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=3456 output file=output_smc.out"
          		.format(num_proc, exe, proposal, num_samples, num_samples, data_str, tmp))
 		    else:
-			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize=0.01 T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
-			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
+			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=4096 num_samples={} {} random seed=1234 output file=output_smc.out"
+			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[4094,] # temporary fix while seg fault on writing samples is investigated			
 	            error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
