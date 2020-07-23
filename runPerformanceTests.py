@@ -475,12 +475,12 @@ def run(exe, data, overwrite, check_golds, check_golds_exact, runs, method, prop
     gold = os.path.join(GOLD_OUTPUT_DIR,
                         exe.replace(DIR_UP, "").replace(os.sep, "_") + ".gold")
     tmp = gold + ".tmp"
-    #try:
-    total_time = run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed)
-    #except Exception as e:
-    #    print("Encountered exception while running {}:".format(exe))
-    #    print(e)
-    #    return 0, (fails, errors + [str(e)])
+    try:
+        total_time = run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed)
+    except Exception as e:
+        print("Encountered exception while running {}:".format(exe))
+        print(e)
+        return 0, (fails, errors + [str(e)])
     # Removing this as it's not needed and it's occasionally causing overflow errors
     #summary = csv_summary(tmp)
     #with open(tmp, "w+") as f:
