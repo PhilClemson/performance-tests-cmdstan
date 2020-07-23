@@ -184,6 +184,8 @@ bad_models = frozenset(
 
 fixed_models = frozenset(
     [os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","low_dim_corr_gauss","low_dim_corr_gauss.stan")
+     , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","pkpd","sim_one_comp_mm_elim_abs.stan")
+     , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","gp_regr","gen_gp_data.stan")
     ])
 
 def avg(coll):
@@ -355,7 +357,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
 		    if fixed == True:
 			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
-		    .format(num_proc, exe, proposal, 1000, num_samples, data_str))
+		    .format(num_proc, exe, proposal, 100, num_samples, data_str))
 		    else:
 			k=1
 			l=-1
@@ -371,8 +373,8 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 				    l=l+1
 				    k=k+1
 			    k=k+1
-			if j==l-1:
-			    break;
+			    if j==l-1:
+			        break;
 			while lines[k] == ' ':
 			    k = k+1
 			    k_start = k
@@ -390,16 +392,16 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated			
 		    error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    #print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
 		    print("mean_hmc = {}\n mean_smc = {}\n error = {}".format( mean_hmc, mean_smc, error)) # no longer printing cov / means due to potential of large outputs
 		    sys.stdout.flush() # added so Jenkins log can catch up
-		    #for n in range(1,num_proc+1):
-		    #    os.remove("output_hmc{}.out".format(n))
-		    #os.remove("output_smc.out")
+		    for n in range(1,num_proc+1):
+		        os.remove("output_hmc{}.out".format(n))
+		    os.remove("output_smc.out")
 		if method == "lee_output":
 		    f_string = "output_hmc1.out"
 		    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
@@ -473,12 +475,12 @@ def run(exe, data, overwrite, check_golds, check_golds_exact, runs, method, prop
     gold = os.path.join(GOLD_OUTPUT_DIR,
                         exe.replace(DIR_UP, "").replace(os.sep, "_") + ".gold")
     tmp = gold + ".tmp"
-    try:
-        total_time = run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed)
-    except Exception as e:
-        print("Encountered exception while running {}:".format(exe))
-        print(e)
-        return 0, (fails, errors + [str(e)])
+    #try:
+    total_time = run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed)
+    #except Exception as e:
+    #    print("Encountered exception while running {}:".format(exe))
+    #    print(e)
+    #    return 0, (fails, errors + [str(e)])
     # Removing this as it's not needed and it's occasionally causing overflow errors
     #summary = csv_summary(tmp)
     #with open(tmp, "w+") as f:
