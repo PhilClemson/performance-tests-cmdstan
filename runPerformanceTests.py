@@ -337,8 +337,8 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    	num_proc = num_proc - (num_proc % 2)
 			for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 4096)
+		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 1024)
 		    if fixed == True:
 			shexec("for i in {}; do ({} id=$i method=sample algorithm=fixed_param {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    else:
@@ -383,16 +383,16 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    k_end = k
 			stepsize = float(lines[k_start:k_end])
 			if proposal == "hmc":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 			elif proposal == "rw":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=3456 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=3456 output file=output_smc.out"
 			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
 			else:
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated			
 		    error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
