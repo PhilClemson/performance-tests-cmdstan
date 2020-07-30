@@ -101,10 +101,10 @@ def shkill(process):
 def shexec(command, wd = "."):
     print(command)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-    #t = Timer(3600, shkill, [process]) # kill if hour passes
-    #t.start()
+    t = Timer(3600, shkill, [process]) # kill if hour passes
+    t.start()
     process.wait()
-    #t.cancel()
+    t.cancel()
     output = process.stdout.read()
     print(output)
     output = process.stderr.read()
@@ -180,12 +180,89 @@ bad_models = frozenset(
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.17","flight_simulator_17.3.stan") # disabled while issue with SMC-Stan remains
      , os.path.join("performance-tests-cmdstan","example-models","ARM","Ch.24","dogs_log.stan") # disabled while issue with SMC-Stan remains
      , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","sir","sir.stan") # removed while issue with SMC-Stan remains
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","cook_et_al","bym_predictor_plus_offset")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","cook_et_al","bym_predictor_only")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","cook_et_al","sim_bym_data")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","climate-challenge","mixture_2")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","climate-challenge","mixture")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","multiple_NB_regression")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp_slopes_mod_resid")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","multiple_poisson_regression")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp_slopes_mod_mos")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","simple_poisson_regression_dgp")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","multiple_NB_regression_dgp")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","simple_poisson_regression")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp_slopes_mod_mos_predict")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","multiple_poisson_regression_dgp")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp_slopes_mod")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","pest-control","stan_programs","hier_NB_regression_ncp_slopes_mod_mos_gp")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bradley-terry","individual-uniform")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bradley-terry","team")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bradley-terry","mle")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bradley-terry","individual-hierarchical")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bradley-terry","individual")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","sum-of-exponentials","sum_of_exponentials")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","sum-of-exponentials","sum_of_exponentials_with_priors")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_pin")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_2pl_power")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_vague")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_predict")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_mle")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_unit")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_hier")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt-multilevel")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_adjust")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_fit_predict")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","ratings","ratings_3")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","ratings","ratings_2")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","ratings","ratings_1")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","single-exponential","exponential")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","single-exponential","exponential_positive")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","single-exponential","exponential_lognormal")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bandits","bernoulli-bandits-sufficient")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bandits","bernoulli-bandits-conjugate")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","bandits","bernoulli-bandits")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","neural","nets_nn-simple")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","neural","nn-k-minus-1")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","noisy-raters","raykar-etal","raykar-marginal")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","noisy-raters","dawid-skene","dawid-skene")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","noisy-raters","sex-ratio","normal_normal")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","mle-params","logodds-jac")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","mle-params","prob")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","mle-params","logodds")
     ])
 
 fixed_models = frozenset(
     [os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","low_dim_corr_gauss","low_dim_corr_gauss.stan")
      , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","pkpd","sim_one_comp_mm_elim_abs.stan")
      , os.path.join("performance-tests-cmdstan","stat_comp_benchmarks","benchmarks","gp_regr","gen_gp_data.stan")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","ordered_pair")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","sorted_pair")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","uniform")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","wishart2")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","normal")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","binormal")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","inv_wishart")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","triangle")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","inv_wishart")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","normal_mixture")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","wishart")
+     , os.path.join("performance-tests-cmdstan","example-models","basic_distributions","wishart2x2")
+     , os.path.join("performance-tests-cmdstan","example-models","bugs_examples","vol3","funshapes","hsquare")
+     , os.path.join("performance-tests-cmdstan","example-models","bugs_examples","vol3","funshapes","parallelogram")
+     , os.path.join("performance-tests-cmdstan","example-models","bugs_examples","vol3","funshapes","circle")
+     , os.path.join("performance-tests-cmdstan","example-models","bugs_examples","vol3","funshapes","squaremc")
+     , os.path.join("performance-tests-cmdstan","example-models","bugs_examples","vol3","funshapes","ring")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","simplest-regression","fake-data")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_1pl_power")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","irt","irt_power")
+     , os.path.join("performance-tests-cmdstan","example-models","knitr","chapter1","fake-data")
+     , os.path.join("performance-tests-cmdstan","example-models","misc","funnel","funnel")
+     , os.path.join("performance-tests-cmdstan","example-models","misc","funnel","funnel_reparam")
     ])
 
 def avg(coll):
@@ -337,27 +414,35 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    	num_proc = num_proc - (num_proc % 2)
 			for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
-		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 1024)
+		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 1024)
 		    if fixed == True:
 			shexec("for i in {}; do ({} id=$i method=sample algorithm=fixed_param {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    else:
 			shexec("for i in {}; do ({} id=$i method=sample adapt delta=0.99 algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    f_string = "output_hmc1.out"
 		    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
-		    samps = lines[:,7:]
-		    if num_proc != 1:
-			for i in range(2,num_proc):
-		    	    f_string = "output_hmc{}.out".format(i)
-		            lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
-			    samps = np.append(samps,lines[:,7:], axis=0)
+		    if fixed == True:
+			samps = lines[:,2:]
+			if num_proc != 1:
+			    for i in range(2,num_proc):
+			    	f_string = "output_hmc{}.out".format(i)
+				lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
+				samps = np.append(samps,lines[:,2:], axis=0)
+		    else:
+			samps = lines[:,7:]
+			if num_proc != 1:
+			    for i in range(2,num_proc):
+			    	f_string = "output_hmc{}.out".format(i)
+				lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
+				samps = np.append(samps,lines[:,7:], axis=0)
 		    cov_hmc = np.cov(samps.T)
 		    mean_hmc = np.mean(samps, axis=0)
 		    sd = np.sqrt(np.diag(cov_hmc))
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
 		    if fixed == True:
 			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
-		    .format(num_proc, exe, proposal, 100, num_samples, data_str))
+		    .format(num_proc, exe, proposal, 1024, num_samples, data_str))
 		    else:
 			k=1
 			l=-1
@@ -383,16 +468,16 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    k_end = k
 			stepsize = float(lines[k_start:k_end])
 			if proposal == "hmc":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 			elif proposal == "rw":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=100 num_samples={} {} random seed=3456 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=3456 output file=output_smc.out"
 			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
 			else:
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=100 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated			
 		    error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
