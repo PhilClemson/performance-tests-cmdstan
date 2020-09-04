@@ -101,10 +101,10 @@ def shkill(process):
 def shexec(command, wd = "."):
     print(command)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-    t = Timer(3600, shkill, [process]) # kill if hour passes
-    t.start()
+    #t = Timer(3600, shkill, [process]) # kill if hour passes
+    #t.start()
     process.wait()
-    t.cancel()
+    #t.cancel()
     output = process.stdout.read()
     print(output)
     output = process.stderr.read()
