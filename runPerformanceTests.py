@@ -472,7 +472,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=5 T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 			elif proposal == "rw":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=3456 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=200 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
 			else:
 			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=200 num_samples={} {} random seed=1234 output file=output_smc.out"
