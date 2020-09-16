@@ -21,7 +21,7 @@ import time as tm
 import signal
 from threading import Timer
 
-np.set_printoptions(threshold=sys.maxsize)
+np.set_printoptions(precision=8,floatmode='fixed',threshold=sys.maxsize)
 
 GOLD_OUTPUT_DIR = os.path.join("performance-tests-cmdstan/golds","")
 DIR_UP = os.path.join("..","")
@@ -98,6 +98,14 @@ def shkill(process):
     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     print('KILLED (TIMEOUT)')
 
+def shexec_old(command, wd = "."):
+    # old shell command executor which provides continuous output but not necessarily in the correct order
+    print(command)
+    returncode = subprocess.call(command, shell=True, cwd=wd)
+    if returncode != 0:
+        raise FailedCommand(returncode, command)
+    return returncode
+
 def shexec(command, wd = "."):
     print(command)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
@@ -126,7 +134,7 @@ def make(targets, j=8):
         for char in name:
             if char.isalnum():
                 formatted_name = formatted_name + char
-        shexec_make("make -i -B -j{} {}"
+        shexec_make("make -i -j{} {}"
             .format(j, " ".join(targets)), wd = ".")
     except FailedCommand:
         print("Failed to make at least some targets")
@@ -343,11 +351,11 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    	num_proc = num_proc - (num_proc % 2)
 			for n in range(2,num_proc+1):
 			    thread_num = thread_num + " {}".format(n)
-		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
+		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, 500)
 		    if fixed == True:
-		        shexec("for i in {}; do ({} id=$i method=sample algorithm=fixed_param {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+		        shexec_old("for i in {}; do ({} id=$i method=sample algorithm=fixed_param {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    else:
-		        shexec("for i in {}; do ({} id=$i method=sample algorithm=hmc engine=nuts {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
+		        shexec_old("for i in {}; do ({} id=$i method=sample adapt delta=0.95 algorithm=hmc engine=nuts max_depth=20 {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
 		    f_string = "output_hmc1.out"
 		    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
 		    samps = lines[:,7:]
@@ -360,7 +368,8 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    mean_hmc = np.mean(samps, axis=0)
 		    sd = np.sqrt(np.diag(cov_hmc))  				
 		    #print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
-		    print("cov_hmc = {}\n mean_hmc = {}\n sd = {}".format(cov_hmc, mean_hmc, sd))
+		    sys.stdout.flush() # added so Jenkins log can catch up
+		    print("mean_hmc = {}\n sd = {}".format(mean_hmc, sd))
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
 		    for n in range(1,num_proc+1):
