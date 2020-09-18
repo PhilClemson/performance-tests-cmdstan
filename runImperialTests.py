@@ -5,6 +5,8 @@ import multiprocessing
 import os
 import sys
 
+np.set_printoptions(precision=8,floatmode='fixed',threshold=sys.maxsize)
+
 def shexec_make(command, wd = "."):
     print(command)
     returncode = subprocess.call(command, shell=True, cwd=wd)
@@ -46,8 +48,6 @@ model_dir = "performance-tests-cmdstan/example-models/applications/covid-19/impe
 # extract mean and sd values from "long run"
 summary = np.genfromtxt(model_dir+"_summary.csv", skip_header=1, delimiter=",")
 
-print(summary[:,0])
-
 mean_hmc = summary[:,0]
 sd = summary[:,2]
 
@@ -67,15 +67,11 @@ shexec_make("make -i -j{} {}".format(num_proc, model_dir), wd = ".")
 num_proc = num_proc - (num_proc % 2)
 
 for n in range(0,L):
-	try:
-		shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize=0.00952820175 T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, model_dir, proposal,num_samples[n],comp_eq/num_samples[n], "data file="+model_dir+"_sub.data.R"))
-		samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		mean_smc = samps[num_samples[n]-2,] # temporary fix while seg fault on writing samples is investigated
-		error = (mean_smc - mean_hmc) / sd
-		sys.stdout.flush() # added so Jenkins log can catch up
-		print("mean_smc = {}\n error = {}".format(mean_smc,error))
-		sys.stdout.flush() # added so Jenkins log can catch up
-		os.remove("output_smc.out")
-	except:
-		print("ERROR")
-
+	shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize=0.00952820175 T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, model_dir, proposal,num_samples[n],comp_eq/num_samples[n], "data file="+model_dir+"_sub.data.R"))
+	samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
+	mean_smc = samps[num_samples[n]-2,] # temporary fix while seg fault on writing samples is investigated
+	error = (mean_smc - mean_hmc[:-1]) / sd[:-1]
+	sys.stdout.flush() # added so Jenkins log can catch up
+	print("error = {}".format(mean_smc,error))
+	sys.stdout.flush() # added so Jenkins log can catch up
+	#os.remove("output_smc.out")
