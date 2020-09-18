@@ -74,4 +74,4 @@ for n in range(0,L):
 	sys.stdout.flush() # added so Jenkins log can catch up
 	print("error = {}".format(mean_smc,error))
 	sys.stdout.flush() # added so Jenkins log can catch up
-	#os.remove("output_smc.out")
+	os.remove("output_smc.out")
