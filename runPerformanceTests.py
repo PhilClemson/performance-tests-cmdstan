@@ -339,12 +339,15 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    if num_proc != 1:
 		    	num_proc = num_proc - (num_proc % 2)
 		    num_samples_str = "num_samples={}".format(num_samples)
-		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, proposal, num_samples, data_str, tmp))
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} T=1 Tsmc=1024 num_samples={} {} random seed=1234 output file=output_smc.out".format(num_proc, exe, proposal, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    mean_smc = samps[1022,] # temporary fix while seg fault on writing samples is investigated
-		    print("mean_smc = {}".format(mean_smc))
+		    sigmas = np.loadtxt("var_smc.out", comments=["#"], delimiter=",", unpack=False)
+		    var_smc = sigmas[1024,]
+		    print("mean_smc = {}\n sd_smc = {}".format(mean_smc, np.sqrt(var_smc)))
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    os.remove("output_smc.out")
+		    os.remove("var_smc.out")
 		if method == "nuts-sample":
 		    thread_num = "1"
 		    if num_proc != 1:
@@ -382,12 +385,15 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    thread_num = thread_num + " {}".format(n)
 		    #num_samples_str = "num_samples={} num_warmup={}".format(num_samples/num_proc, ((100*num_samples) - num_samples)/num_proc)
 		    num_samples_str = "num_samples={} num_warmup={}".format(num_samples, num_samples)
-		    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
+		    shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
 		    .format(num_proc, exe, proposal, num_samples, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
 		    #cov_smc = np.cov(samps.T)
 		    #mean_smc = np.mean(samps, axis=0)
 		    mean_smc = samps[num_samples-2,] # temporary fix while seg fault on writing samples is investigated
+		    sigmas = np.loadtxt("var_smc.out", comments=["#"], delimiter=",", unpack=False)
+		    var_smc = sigmas[num_samples,]
+		    print("mean_smc = {}\n sd_smc = {}".format(mean_smc, np.sqrt(var_smc)))
 		    if not np.isnan(mean_smc[0]):
 			if fixed == True:
 			     shexec("for i in {}; do ({} id=$i method=sample algorithm=fixed_param {} {} random seed=1234 output file=output_hmc$i.out refresh=0) & done; wait".format(thread_num,exe, num_samples_str, data_str))
@@ -405,11 +411,11 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			cov_hmc = np.cov(samps.T)
 			mean_hmc = np.mean(samps, axis=0)
 			sd = np.sqrt(np.diag(cov_hmc))
-			error = (mean_smc - mean_hmc) / sd
+			error = (mean_smc - mean_hmc) / np.sqrt((sd**2+var_smc)/np.sqrt(num_samples))
 			#print("cov_hmc = {}\n mean_hmc = {}\n cov_smc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, cov_smc, mean_smc, error))
 			shexec("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt")
 			#print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
-			print("error = {}".format(error)) # no longer printing cov / means due to potential of large outputs
+			print("Z = {}".format(error)) # no longer printing cov / means due to potential of large outputs
 			sys.stdout.flush() # added so Jenkins log can catch up
 			for n in range(1,num_proc+1):
 		            os.remove("output_hmc{}.out".format(n))
@@ -417,6 +423,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			print("{} has NaNs in SMC-stan output".format(exe))
 			sys.stdout.flush() # added so Jenkins log can catch up
 		    os.remove("output_smc.out")
+		    os.remove("var_smc.out")
 		if method == "compare_methods_custom":
 		    thread_num = "1"
 		    if num_proc != 1:
@@ -451,7 +458,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    sd = np.sqrt(np.diag(cov_hmc))
 		    lines = subprocess.check_output("bin/stansummary output_hmc*.out --sig_figs=3 &> summary.txt", shell=True)
 		    if fixed == True:
-			shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
+			shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} T=1 Tsmc={} num_samples={} {} random seed=1234 output file=output_smc.out"
 		    .format(num_proc, exe, proposal, 1000, num_samples, data_str))
 		    else:
 			k=1
@@ -478,25 +485,28 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 			    k_end = k
 			stepsize = float(lines[k_start:k_end])
 			if proposal == "hmc":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} num_leapfrog_steps=512 T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} stepsize={} num_leapfrog_steps=512 T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 			elif proposal == "rw":
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, num_samples, data_str, tmp))
 			else:
-			    shexec("mpirun -np {} {} method=sample algorithm=smcs proposal={} stepsize={} T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
+			    shexec("mpirun -np {} {} method=sample algorithm=smcs var_ests_file=var_smc.out proposal={} stepsize={} T=1 Tsmc=1000 num_samples={} {} random seed=1234 output file=output_smc.out"
 			.format(num_proc, exe, proposal, stepsize, num_samples, data_str, tmp))
 		    samps = np.loadtxt("output_smc.out", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[998,] # temporary fix while seg fault on writing samples is investigated			
-		    error = (mean_smc - mean_hmc) / sd
+		    mean_smc = samps[998,] # temporary fix while seg fault on writing samples is investigated	
+		    sigmas = np.loadtxt("var_smc.out", comments=["#"], delimiter=",", unpack=False)
+		    var_smc = sigmas[998,]
+		    error = (mean_smc - mean_hmc) / np.sqrt((sd**2+var_smc)/np.sqrt(num_samples))
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    #print("cov_hmc = {}\n mean_hmc = {}\n mean_smc = {}\n error = {}".format(cov_hmc, mean_hmc, mean_smc, error))
-		    print("mean_hmc = {}\n mean_smc = {}\n error = {}".format( mean_hmc, mean_smc, error)) # no longer printing cov / means due to potential of large outputs
+		    print("mean_hmc = {}\n mean_smc = {}\n Z = {}".format( mean_hmc, mean_smc, error)) # no longer printing cov / means due to potential of large outputs
 		    sys.stdout.flush() # added so Jenkins log can catch up
 		    for n in range(1,num_proc+1):
 		        os.remove("output_hmc{}.out".format(n))
 		    os.remove("output_smc.out")
+		    os.remove("var_smc.out")
 		if method == "lee_output":
 		    f_string = "output_hmc1.out"
 		    lines = np.loadtxt(f_string, comments=["#","lp__"], delimiter=",", unpack=False)
@@ -510,7 +520,7 @@ def run_model(exe, method, proposal, data, tmp, runs, num_samples, fixed):
 		    mean_hmc = np.mean(samps, axis=0)
 		    sd = np.sqrt(np.diag(cov_hmc))
 		    samps = np.loadtxt("output_smc.csv", comments=["#"], delimiter=",", unpack=False)
-		    mean_smc = samps[98,] # temporary fix while seg fault on writing samples is investigated			
+		    mean_smc = samps[998,] # temporary fix while seg fault on writing samples is investigated			
 		    error = (mean_smc - mean_hmc) / sd
 		    print(lines)
 		    sys.stdout.flush() # added so Jenkins log can catch up
